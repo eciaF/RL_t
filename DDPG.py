@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import os
 import time
 import random
@@ -17,11 +14,10 @@ from gym import wrappers
 from torch.autograd import Variable
 from collections import deque
 from tensorboardX import SummaryWriter
-
 import json
 
 class OrnsteinUhlenbeckProcess:
-    def __init__(self, mu=np.zeros(1), sigma=0.05, theta=.25, dimension=1e-2, x0=None, num_steps=12000):
+    def __init__(self, mu=np.zeros(1), sigma=0.05, theta=.25, dimension=1e-2, x0=None, num_steps=300000):
         self.theta = theta
         self.mu = mu
         self.sigma = sigma
@@ -36,9 +32,6 @@ class OrnsteinUhlenbeckProcess:
 
     def reset(self):
         self.x_prev = self.x0 if self.x0 is not None else np.zeros_like(self.mu)
-
-
-# In[113]:
 
 
 class Actor(nn.Module):
@@ -67,10 +60,10 @@ class Actor(nn.Module):
         torch.nn.init.uniform_(self.layer3.weight.data, -3e-3, 3e-3)
 
 
-class Q_network(nn.Module):
+class QNetwork(nn.Module):
 
     def __init__(self, state_size, action_size, fc1, fc2):
-        super(Q_network, self).__init__()
+        super(QNetwork, self).__init__()
         # fci = fully connected i
         self.layer1 = nn.Linear(state_size + action_size, fc1)
         self.layer2 = nn.Linear(fc1, fc2)
@@ -82,15 +75,16 @@ class Q_network(nn.Module):
 
     def forward(self, states, actions):
         batch = torch.cat([states, actions], 1)
-        out_l1 = F.relu(self.layer1(batch))
-        out_l2 = F.relu(self.layer2(out_l1))
-        out = self.layer3(out_l2)
-        return out
+        x1 = F.relu(self.layer1(batch))
+        x2 = F.relu(self.layer2(x1))
+        x3 = self.layer3(x2)
+        return x3
 
     def reset_parameteres(self):
         torch.nn.init.kaiming_normal_(self.layer1.weight.data, a=self.leak, mode='fan_in')
         torch.nn.init.kaiming_normal_(self.layer2.weight.data, a=self.leak, mode='fan_in')
         torch.nn.init.uniform_(self.layer3.weight.data, -3e-3, 3e-3)
+
 
 class ReplayBuffer:
 
@@ -139,22 +133,19 @@ class ReplayBuffer:
         pass
 
 
-# In[114]:
-
-
 class Agent():
 
     def __init__(self, action_size, state_size, config):
         self.action_size = action_size
         self.state_size = state_size
-        self.seed = config["seed"]
-        self.lr_actor = config["lr_actor"]
-        self.lr_critic = config["lr_critic"]
+
         self.tau = config["tau"]
         self.gamma = config["gamma"]
         self.batch_size = config["batch_size"]
+
+        # check whether cuda available if chosen as device
         if config["device"] == "cuda":
-            if torch.cuda.is_available():
+            if not torch.cuda.is_available():
                 config["device"] == "cpu"
         self.device = config["device"]
 
@@ -166,45 +157,42 @@ class Agent():
         self.memory = ReplayBuffer(state_size, action_size, config["buffer_size"], self.device)
 
         # everything necessary for SummaryWriter
-        pathname = 8
+        pathname = 1
         tensorboard_name = str(config["locexp"]) + '/runs' + str(pathname)
         self.writer = SummaryWriter(tensorboard_name)
         self.steps = 0
 
         # set seeds
-        torch.manual_seed(self.seed)
-        np.random.seed(self.seed)
+        torch.manual_seed(config["seed"])
+        np.random.seed(config["seed"])
 
         # actor, optimizer of actor, target for actor, critic, optimizer of critic, target for critic
         self.actor = Actor(state_size, action_size, config["fc1_units"], config["fc2_units"]).to(self.device)
-        self.optimizer_a = torch.optim.Adam(self.actor.parameters(), self.lr_actor)
+        self.optimizer_a = torch.optim.Adam(self.actor.parameters(), config["lr_actor"])
         self.target_actor = Actor(state_size, action_size, config["fc1_units"], config["fc2_units"]).to(self.device)
         self.target_actor.load_state_dict(self.actor.state_dict())
-        self.critic = Q_network(state_size, action_size, config["fc1_units"], config["fc2_units"]).to(self.device)
-        self.optimizer_q = torch.optim.Adam(self.critic.parameters(), self.lr_critic)
-        self.target_critic = Q_network(state_size, action_size, config["fc1_units"], config["fc2_units"]).to(self.device)
+        self.critic = QNetwork(state_size, action_size, config["fc1_units"], config["fc2_units"]).to(self.device)
+        self.optimizer_q = torch.optim.Adam(self.critic.parameters(), config["lr_critic"])
+        self.target_critic = QNetwork(state_size, action_size, config["fc1_units"], config["fc2_units"]).to(self.device)
         self.target_critic.load_state_dict(self.critic.state_dict())
 
     def act(self, state, greedy=False):
-        state = torch.as_tensor(state, dtype=torch.float32, device=torch.device("cpu"))
+        state = torch.as_tensor(state, dtype=torch.float32, device=self.device)
         state = state.unsqueeze(0)
         with torch.no_grad():
-            action = self.actor(state).numpy()[0]#.detach().numpy()
-
-        # ^ torch.argmax(q_nns) in continuous case
+            action = self.actor(state).numpy()[0]
+            # ^ torch.argmax(q_nns) in continuous case
         noise = self.noise.step()
-        #print(noise)
         action = action if greedy else np.clip(action + noise, -1, 1)#self.noise.step(), -1, 1)
         return action
 
     def train(self, episodes, timesteps):
-        #env = gym.make("MountainCarContinuous-v0")
         env = gym.make("LunarLanderContinuous-v2")
 
         mean_r = 0
         mean_episode = 0
         dq = deque(maxlen=100)
-        for i in range(1, episodes+1):
+        for i in range(episodes):
             state = env.reset()
             if i % 10 == 0:
                 self.noise.reset()
@@ -225,13 +213,12 @@ class Agent():
                     print(f"timesteps until break: {j}")
                     break
 
-            # append mean of episode to list and add average of last 10 means if existent, then reset mean
+            # print and write data to tensorboard for pre_evaluation
             dq.append(mean_r)
             mean_episode = np.mean(dq)
             self.writer.add_scalar("a_rew", mean_episode, i)
-
-            # print every tenth episode to keep track
             print(f"Episode: {i}, mean_r: {mean_r}, mean_episode: {mean_episode}")
+
             mean_r = 0
 
     def update(self):
@@ -252,7 +239,7 @@ class Agent():
         # set gradients to zero and optimize q
         self.optimizer_q.zero_grad()
         loss_critic.backward()
-        self.optimizer_q.step
+        self.optimizer_q.step()
 
         # update actor
         c_action = self.actor(state)
@@ -274,16 +261,10 @@ class Agent():
             target.data.copy_(self.tau * parameter.data + (1 - self.tau) * target.data)
 
 
-# In[11]:
-
-
-
-
 def main():
     with open('param.json') as f:
         config = json.load(f)
 
-        #env = gym.make("MountainCarContinuous-v0")
     env = gym.make("LunarLanderContinuous-v2")
     state = env.reset()
     action_space = env.action_space.shape[0]
