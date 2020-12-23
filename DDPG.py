@@ -97,9 +97,9 @@ class ReplayBuffer:
         self.index = 0
         self.full = False
 
-        self.state = np.empty(shape=(capacity, state_size), dtype=np.float32)
-        self.action = np.empty(shape=(capacity, action_size), dtype=np.float32)
-        self.next_state = np.empty(shape=(capacity, state_size), dtype=np.float32)
+        self.state = np.empty(shape=(capacity, *state_size), dtype=np.float32)
+        self.action = np.empty(shape=(capacity, *action_size), dtype=np.float32)
+        self.next_state = np.empty(shape=(capacity, *state_size), dtype=np.float32)
         self.reward = np.empty(shape=(capacity, 1), dtype=np.float32)
         self.done = np.empty(shape=(capacity, 1), dtype=np.int8)
 
@@ -111,18 +111,19 @@ class ReplayBuffer:
         np.copyto(self.done[self.index], done)
 
         self.index = (self.index + 1) % self.capacity
-        self.full = True if self.index == 0 else False
+        if self.index == 0:
+            self.full = True
 
     def sample(self, batchsize):
-        limit = self.index if not self.full else self.capacity - 1
+        limit = self.index if not self.full else self.capacity
 
         batch = np.random.randint(0, limit, size=batchsize)
 
-        state = torch.as_tensor(self.state[batch])
-        action = torch.as_tensor(self.action[batch])
-        next_state = torch.as_tensor(self.next_state[batch])
-        reward = torch.as_tensor(self.reward[batch])
-        done = torch.as_tensor(self.done[batch])
+        state = torch.as_tensor(self.state[batch], device=self.device)
+        action = torch.as_tensor(self.action[batch], device=self.device)
+        next_state = torch.as_tensor(self.next_state[batch], device=self.device)
+        reward = torch.as_tensor(self.reward[batch], device=self.device)
+        done = torch.as_tensor(self.done[batch], device=self.device)
 
         return state, action, next_state, reward, done
 
@@ -150,7 +151,7 @@ class Agent():
         self.device = config["device"]
 
         # initialize noise
-        self.noise = OrnsteinUhlenbeckProcess(sigma=0.2, theta=0.15)
+        self.noise = OrnsteinUhlenbeckProcess(sigma=0.2, theta=0.15, dimension=action_size)
         self.noise.reset()
 
         # replay
@@ -228,7 +229,7 @@ class Agent():
 
         with torch.no_grad():
             next_action = self.target_actor(next_state)#.detach()#.numpy()
-            q_target = self.target_critic(next_state, next_action)
+            q_target = self.target_critic(next_state, next_action).detach()
             y_target = reward + (self.gamma * q_target * (1-done))
 
         # update critic
