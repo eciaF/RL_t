@@ -155,10 +155,10 @@ class Agent():
         self.noise.reset()
 
         # replay
-        self.memory = ReplayBuffer(state_size, action_size, config["buffer_size"], self.device)
+        self.memory = ReplayBuffer((state_size, ), (action_size, ), config["buffer_size"], self.device)
 
         # everything necessary for SummaryWriter
-        pathname = 1
+        pathname = f"tau={self.tau}, gamma: {self.gamma}, batchsize: {self.batch_size}"
         tensorboard_name = str(config["locexp"]) + '/runs' + str(pathname)
         self.writer = SummaryWriter(tensorboard_name)
         self.steps = 0
