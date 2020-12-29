@@ -5,7 +5,7 @@ import os
 import time
 import random
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import gym
 import torch
 import torch.nn as nn
@@ -164,8 +164,8 @@ class Agent():
         self.steps = 0
 
         # set seeds
-        torch.manual_seed(config["seed"])
-        np.random.seed(config["seed"])
+        #torch.manual_seed(config["seed"])
+        #np.random.seed(config["seed"])
 
         # actor, optimizer of actor, target for actor, critic, optimizer of critic, target for critic
         self.actor = Actor(state_size, action_size, config["fc1_units"], config["fc2_units"]).to(self.device)
@@ -267,6 +267,12 @@ def main():
         config = json.load(f)
 
     env = gym.make("LunarLanderContinuous-v2")
+
+    torch.manual_seed(config["seed"])
+    np.random.seed(config["seed"])
+    env.seed(config["seed"])
+    env.action_space.seed([config["seed"]])
+
     state = env.reset()
     action_space = env.action_space.shape[0]
     state_size = env.observation_space.shape[0]
