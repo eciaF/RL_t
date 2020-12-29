@@ -271,7 +271,7 @@ def main():
     torch.manual_seed(config["seed"])
     np.random.seed(config["seed"])
     env.seed(config["seed"])
-    env.action_space.seed([config["seed"]])
+    env.action_space.seed(config["seed"])
 
     state = env.reset()
     action_space = env.action_space.shape[0]
