@@ -1,21 +1,26 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import os
+#import os
 import time
-import random
+#import random
 import numpy as np
 #import matplotlib.pyplot as plt
 import gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from gym import wrappers
-from torch.autograd import Variable
+#from gym import wrappers
+#from torch.autograd import Variable
 from collections import deque
 from tensorboardX import SummaryWriter
 import json
 
+from helper import OrnsteinUhlenbeckProcess
+from models import Actor, QNetwork
+from replaybuffer import ReplayBuffer
+
+"""
 class OrnsteinUhlenbeckProcess:
     def __init__(self, mu=np.zeros(1), sigma=0.05, theta=.25, dimension=1e-2, x0=None, num_steps=300000):
         self.theta = theta
@@ -32,8 +37,9 @@ class OrnsteinUhlenbeckProcess:
 
     def reset(self):
         self.x_prev = self.x0 if self.x0 is not None else np.zeros_like(self.mu)
+"""
 
-
+"""
 class Actor(nn.Module):
 
     def __init__(self, state_size, action_size, fc1, fc2):
@@ -84,8 +90,9 @@ class QNetwork(nn.Module):
         torch.nn.init.kaiming_normal_(self.layer1.weight.data, a=self.leak, mode='fan_in')
         torch.nn.init.kaiming_normal_(self.layer2.weight.data, a=self.leak, mode='fan_in')
         torch.nn.init.uniform_(self.layer3.weight.data, -3e-3, 3e-3)
+"""
 
-
+"""
 class ReplayBuffer:
 
     def __init__(self, state_size, action_size, capacity, device):
@@ -132,7 +139,7 @@ class ReplayBuffer:
 
     def load_memory(self):
         pass
-
+"""
 
 class Agent():
 
@@ -162,10 +169,6 @@ class Agent():
         tensorboard_name = str(config["locexp"]) + '/runs' + str(pathname)
         self.writer = SummaryWriter(tensorboard_name)
         self.steps = 0
-
-        # set seeds
-        #torch.manual_seed(config["seed"])
-        #np.random.seed(config["seed"])
 
         # actor, optimizer of actor, target for actor, critic, optimizer of critic, target for critic
         self.actor = Actor(state_size, action_size, config["fc1_units"], config["fc2_units"]).to(self.device)
@@ -271,7 +274,7 @@ def main():
     torch.manual_seed(config["seed"])
     np.random.seed(config["seed"])
     env.seed(config["seed"])
-    env.action_space.seed([config["seed"]])
+    env.action_space.seed(config["seed"])
 
     state = env.reset()
     action_space = env.action_space.shape[0]
