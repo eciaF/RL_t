@@ -5,8 +5,9 @@ import torch.nn.functional as F
 
 class Actor(nn.Module):
 
-    def __init__(self, state_size, action_size, fc1, fc2):
+    def __init__(self, state_size, action_size, fc1, fc2, seed):
         super(Actor, self).__init__()
+        self.seed = torch.manual_seed(seed)
         self.layer1 = nn.Linear(state_size, fc1)
         self.layer2 = nn.Linear(fc1, fc2)
         self.layer3 = nn.Linear(fc2, action_size)
@@ -28,8 +29,9 @@ class Actor(nn.Module):
 
 class QNetwork(nn.Module):
 
-    def __init__(self, state_size, action_size, fc1, fc2):
+    def __init__(self, state_size, action_size, fc1, fc2, seed):
         super(QNetwork, self).__init__()
+        self.seed = torch.manual_seed(seed)
         self.layer1 = nn.Linear(state_size + action_size, fc1)
         self.layer2 = nn.Linear(fc1, fc2)
         self.layer3 = nn.Linear(fc2, 1)
@@ -52,8 +54,9 @@ class QNetwork(nn.Module):
 
 class DoubleQNetworks(nn.Module):
 
-    def __init__(self, state_size, action_size, fc1, fc2):
+    def __init__(self, state_size, action_size, fc1, fc2, seed):
         super(DoubleQNetworks, self).__init__()
+        self.seed = torch.manual_seed(seed)
         self.layer1_1 = nn.Linear(state_size + action_size, fc1)
         self.layer2_1 = nn.Linear(fc1, fc2)
         self.layer3_1 = nn.Linear(fc2, 1)

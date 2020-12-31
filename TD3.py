@@ -33,7 +33,7 @@ class Agent():
 
         # replay
         self.memory = ReplayBuffer((state_size, ), (action_size, ),
-                                   config["buffer_size"], self.device)
+                                   config["buffer_size"], self.device, config["seed"])
 
         # everything necessary for SummaryWriter
         pathname = f"tau={self.tau}, gamma: {self.gamma}, \
@@ -45,18 +45,18 @@ class Agent():
         # actor, optimizer of actor, target for actor, critic, optimizer of
         #  critic, target for critic
         self.actor = Actor(state_size, action_size, config["fc1_units"],
-                           config["fc2_units"]).to(self.device)
+                           config["fc2_units"], config["seed"]).to(self.device)
         self.optimizer_a = torch.optim.Adam(self.actor.parameters(),
                                             config["TD3_lr_actor"])
         self.target_actor = Actor(state_size, action_size, config["fc1_units"],
-                                  config["fc2_units"]).to(self.device)
+                                  config["fc2_units"], config["seed"]).to(self.device)
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.critic = DoubleQNetworks(state_size, action_size, config["fc1_units"],
-                                      config["fc2_units"]).to(self.device)
+                                      config["fc2_units"], config["seed"]).to(self.device)
         self.optimizer_q = torch.optim.Adam(self.critic.parameters(),
                                             config["TD3_lr_critic"])
         self.target_critic = DoubleQNetworks(state_size, action_size, config["fc1_units"],
-                                             config["fc2_units"]).to(self.device)
+                                             config["fc2_units"], config["seed"]).to(self.device)
         self.target_critic.load_state_dict(self.critic.state_dict())
 
     def act(self, state, greedy=False):
