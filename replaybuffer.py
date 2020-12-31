@@ -32,7 +32,6 @@ class ReplayBuffer:
 
     def sample(self, batchsize):
         limit = self.index if not self.full else self.capacity
-
         batch = np.random.randint(0, limit, size=batchsize)
 
         state = torch.as_tensor(self.state[batch], device=self.device)

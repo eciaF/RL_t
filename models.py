@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,20 +7,17 @@ class Actor(nn.Module):
 
     def __init__(self, state_size, action_size, fc1, fc2):
         super(Actor, self).__init__()
-        # fci = fully connected i
         self.layer1 = nn.Linear(state_size, fc1)
         self.layer2 = nn.Linear(fc1, fc2)
         self.layer3 = nn.Linear(fc2, action_size)
 
         self.leak = 0.01
-
         self.reset_parameteres()
 
     def forward(self, states):
         out_l1 = F.relu(self.layer1(states))
         out_l2 = F.relu(self.layer2(out_l1))
         out = F.tanh(self.layer3(out_l2))
-        #out = F.tanh(self.layer3(out_l2))
         return out
 
     def reset_parameteres(self):
@@ -34,13 +30,11 @@ class QNetwork(nn.Module):
 
     def __init__(self, state_size, action_size, fc1, fc2):
         super(QNetwork, self).__init__()
-        # fci = fully connected i
         self.layer1 = nn.Linear(state_size + action_size, fc1)
         self.layer2 = nn.Linear(fc1, fc2)
         self.layer3 = nn.Linear(fc2, 1)
 
         self.leak = 0.01
-
         self.reset_parameteres()
 
     def forward(self, states, actions):
@@ -59,8 +53,7 @@ class QNetwork(nn.Module):
 class DoubleQNetworks(nn.Module):
 
     def __init__(self, state_size, action_size, fc1, fc2):
-        super(QNetworks, self).__init__()
-        # fci = fully connected i
+        super(DoubleQNetworks, self).__init__()
         self.layer1_1 = nn.Linear(state_size + action_size, fc1)
         self.layer2_1 = nn.Linear(fc1, fc2)
         self.layer3_1 = nn.Linear(fc2, 1)
@@ -76,12 +69,12 @@ class DoubleQNetworks(nn.Module):
     def forward(self, states, actions):
         batch = torch.cat([states, actions], 1)
         q1_out1 = F.relu(self.layer1_1(batch))
-        q1_out2 = F.relu(self.layer2_1(out_l1))
-        q1_out3 = self.layer3_1(out_l2)
+        q1_out2 = F.relu(self.layer2_1(q1_out1))
+        q1_out3 = self.layer3_1(q1_out2)
 
         q2_out1 = F.relu(self.layer1_2(batch))
-        q2_out2 = F.relu(self.layer2_2(out_l1))
-        q2_out3 = self.layer3_2(out_l2)
+        q2_out2 = F.relu(self.layer2_2(q2_out1))
+        q2_out3 = self.layer3_2(q2_out2)
 
         return q1_out3, q2_out3
 
