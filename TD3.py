@@ -85,7 +85,9 @@ class Agent():
                 noise = np.zeros(shape=(self.action_size,))
                 for idx in range(len(noise)):
                     noise[idx] = np.random.normal(0, self.sigma_exploration)
-                action = self.act(state) + noise
+                    #noise[idx] = np.random.normal(0, self.sigma_exploration * self.max_action)
+                # add self.max_action and self.min_action
+                action = np.clip((self.act(state) + noise), -1, 1)
                 next_state, reward, done, _ = self.env.step(action)
                 self.memory.add(state, action, next_state, reward, done)
                 state = next_state
@@ -113,12 +115,9 @@ class Agent():
         state, action, next_state, reward, done = self.memory.sample(self.batch_size)
 
         noise = np.clip((torch.randn_like(action, dtype=torch.float32) * self.sigma_tilde), -self.noise_clip, self.noise_clip)
-        #noise = np.zeros(shape=(self.action_size,))
-        #for idx in range(len(noise)):
-        #    noise[idx] = np.clip(np.random.normal(0, self.sigma_tilde), -self.noise_clip, self.noise_clip)
+        #noise = (torch.randn_like(action, dtype=torch.float32) * self.sigma_tilde).clamp(-self.noise_clip, self.noise_clip)
         with torch.no_grad():
-            next_action = np.clip(self.target_actor(next_state) + noise, -1, 1)
-            #next_action = next_action.type(torch.float32)
+            next_action = (self.target_actor(next_state) + noise).clamp(-1, 1)
             q_target = self.target_critic(next_state, next_action)
             y_target = reward + (self.gamma * torch.min(q_target[0], q_target[1]) * (1-done))
 
