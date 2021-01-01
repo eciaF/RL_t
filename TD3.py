@@ -24,6 +24,8 @@ class Agent():
         self.sigma_exploration = config["TD3_sigma_exploration"]
         self.sigma_tilde = config["TD3_sigma_tilde"]
         self.update_freq = config["TD3_update_freq"]
+        self.max_action = config["max_action"]
+        self.min_action = config["min_action"]
         self.seed = seed
         self.env = gym.make("LunarLanderContinuous-v2")
 
@@ -84,10 +86,8 @@ class Agent():
             for t in range(1, timesteps+1):
                 noise = np.zeros(shape=(self.action_size,))
                 for idx in range(len(noise)):
-                    noise[idx] = np.random.normal(0, self.sigma_exploration)
-                    #noise[idx] = np.random.normal(0, self.sigma_exploration * self.max_action)
-                # add self.max_action and self.min_action
-                action = np.clip((self.act(state) + noise), -1, 1)
+                    noise[idx] = np.random.normal(0, self.sigma_exploration * self.max_action)
+                action = np.clip((self.act(state) + noise), self.min_action, self.max_action)
                 next_state, reward, done, _ = self.env.step(action)
                 self.memory.add(state, action, next_state, reward, done)
                 state = next_state
@@ -117,7 +117,7 @@ class Agent():
         noise = np.clip((torch.randn_like(action, dtype=torch.float32) * self.sigma_tilde), -self.noise_clip, self.noise_clip)
         #noise = (torch.randn_like(action, dtype=torch.float32) * self.sigma_tilde).clamp(-self.noise_clip, self.noise_clip)
         with torch.no_grad():
-            next_action = (self.target_actor(next_state) + noise).clamp(-1, 1)
+            next_action = (self.target_actor(next_state) + noise).clamp(self.min_action, self.max_action)
             q_target = self.target_critic(next_state, next_action)
             y_target = reward + (self.gamma * torch.min(q_target[0], q_target[1]) * (1-done))
 
@@ -160,16 +160,12 @@ def main():
     with open('param.json') as f:
         config = json.load(f)
 
-    env = gym.make("LunarLanderContinuous-v2")
+    env = gym.make(config["env_name"])
 
-    torch.manual_seed(config["seed"])
-    np.random.seed(config["seed"])
-    env.seed(config["seed"])
-    env.action_space.seed(config["seed"])
-
-    env.reset()
     action_space = env.action_space.shape[0]
     state_size = env.observation_space.shape[0]
+    config["max_action"] = env.action_space.high[0]
+    config["min_action"] = env.action_space.low[0]
 
     agent = Agent(action_size=action_space, state_size=state_size,
                   config=config, seed=config["seed"])
