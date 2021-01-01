@@ -160,7 +160,7 @@ def main():
     with open('param.json') as f:
         config = json.load(f)
 
-    env = gym.make(config["env_name"])
+    env = gym.make(config["env_cont"])
 
     action_space = env.action_space.shape[0]
     state_size = env.observation_space.shape[0]
