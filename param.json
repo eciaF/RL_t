@@ -1,5 +1,6 @@
 {
-  "env_name": "LunarLander-v2",
+  "env_cont": "LunarLanderContinuous-v2",
+  "env_disc": "LunarLander-v2",
   "locexp": "search_results",
   "lr_actor": 1e-4,
   "TD3_lr_actor": 1e-3,
