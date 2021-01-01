@@ -104,7 +104,7 @@ class Agent():
             # print and write data to tensorboard for pre_evaluation
             dq.append(mean_r)
             mean_episode = np.mean(dq)
-            self.writer.add_scalar("a_rew", mean_episode, i)
+            self.writer.add_scalar("average_reward", mean_episode, self.steps)
             print(f"Episode: {i}, mean_r: {mean_r}, mean_episode: {mean_episode}")
 
             mean_r = 0
