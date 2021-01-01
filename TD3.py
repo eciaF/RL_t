@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import gym
 import torch
@@ -6,15 +5,16 @@ import torch.nn.functional as F
 from collections import deque
 from tensorboardX import SummaryWriter
 import json
+import datetime
 
-from helper import OrnsteinUhlenbeckProcess
+
 from models import Actor, DoubleQNetworks
 from replaybuffer import ReplayBuffer
 
 
 class Agent():
 
-    def __init__(self, action_size, state_size, config):
+    def __init__(self, action_size, state_size, config, seed):
         self.action_size = action_size
         self.state_size = state_size
         self.tau = config["TD3_tau"]
@@ -24,6 +24,14 @@ class Agent():
         self.sigma_exploration = config["TD3_sigma_exploration"]
         self.sigma_tilde = config["TD3_sigma_tilde"]
         self.update_freq = config["TD3_update_freq"]
+        self.seed = seed
+        self.env = gym.make("LunarLanderContinuous-v2")
+
+        # set seeds for comparison
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        self.env.seed(seed)
+        self.env.action_space.seed(seed)
 
         # check whether cuda available if chosen as device
         if config["device"] == "cuda":
@@ -36,14 +44,13 @@ class Agent():
                                    config["buffer_size"], self.device, config["seed"])
 
         # everything necessary for SummaryWriter
-        pathname = f"tau={self.tau}, gamma: {self.gamma}, \
-                   batchsize: {self.batch_size}, {time.ctime()}"
+        time_for_path = datetime.datetime.now().strftime("%Y.%m.%d-%H:%M:%S")
+        pathname = f" {time_for_path}"
         tensorboard_name = str(config["locexp"]) + '/runs' + str(pathname)
         self.writer = SummaryWriter(tensorboard_name)
         self.steps = 0
 
-        # actor, optimizer of actor, target for actor, critic, optimizer of
-        #  critic, target for critic
+        # actor, optimizer of actor, target for actor, critic, optimizer of critic, target for critic
         self.actor = Actor(state_size, action_size, config["fc1_units"],
                            config["fc2_units"], config["seed"]).to(self.device)
         self.optimizer_a = torch.optim.Adam(self.actor.parameters(),
@@ -68,20 +75,18 @@ class Agent():
         return action
 
     def train(self, episodes, timesteps):
-        env = gym.make("LunarLanderContinuous-v2")
-
         mean_r = 0
         mean_episode = 0
         dq = deque(maxlen=100)
         for i in range(episodes):
-            state = env.reset()
+            state = self.env.reset()
 
             for t in range(1, timesteps+1):
                 noise = np.zeros(shape=(self.action_size,))
                 for idx in range(len(noise)):
                     noise[idx] = np.random.normal(0, self.sigma_exploration)
                 action = self.act(state) + noise
-                next_state, reward, done, _ = env.step(action)
+                next_state, reward, done, _ = self.env.step(action)
                 self.memory.add(state, action, next_state, reward, done)
                 state = next_state
                 mean_r += reward
@@ -98,8 +103,7 @@ class Agent():
             dq.append(mean_r)
             mean_episode = np.mean(dq)
             self.writer.add_scalar("a_rew", mean_episode, i)
-            print(f"Episode: {i}, mean_r: {mean_r}, \
-                    mean_episode: {mean_episode}")
+            print(f"Episode: {i}, mean_r: {mean_r}, mean_episode: {mean_episode}")
 
             mean_r = 0
 
@@ -108,13 +112,13 @@ class Agent():
         # sample minibatch and calculate target value and q_nns
         state, action, next_state, reward, done = self.memory.sample(self.batch_size)
 
-        noise = np.zeros(shape=(self.action_size,))
-        for idx in range(len(noise)):
-            noise[idx] = np.clip(np.random.normal(0, self.sigma_tilde),
-                                 -self.noise_clip, self.noise_clip)
+        noise = np.clip((torch.randn_like(action, dtype=torch.float32) * self.sigma_tilde), -self.noise_clip, self.noise_clip)
+        #noise = np.zeros(shape=(self.action_size,))
+        #for idx in range(len(noise)):
+        #    noise[idx] = np.clip(np.random.normal(0, self.sigma_tilde), -self.noise_clip, self.noise_clip)
         with torch.no_grad():
-            next_action = self.target_actor(next_state) + noise
-            next_action = next_action.type(torch.float32)
+            next_action = np.clip(self.target_actor(next_state) + noise, -1, 1)
+            #next_action = next_action.type(torch.float32)
             q_target = self.target_critic(next_state, next_action)
             y_target = reward + (self.gamma * torch.min(q_target[0], q_target[1]) * (1-done))
 
@@ -169,7 +173,7 @@ def main():
     state_size = env.observation_space.shape[0]
 
     agent = Agent(action_size=action_space, state_size=state_size,
-                  config=config)
+                  config=config, seed=config["seed"])
 
     agent.train(episodes=1000, timesteps=1000)
 

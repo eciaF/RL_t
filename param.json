@@ -11,7 +11,7 @@
   "gamma": 0.99,
   "TD3_gamma": 0.99,
   "TD3_sigma_exploration": 0.1,
-  "TD3_sigma_tilde": 0.1,
+  "TD3_sigma_tilde": 0.2,
   "TD3_update_freq": 2,
   "TD3_noise_clip": 0.5,
   "seed": 3,
