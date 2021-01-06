@@ -27,7 +27,7 @@ class Agent():
         self.max_action = config["max_action"]
         self.min_action = config["min_action"]
         self.seed = seed
-        self.env = gym.make("LunarLanderContinuous-v2")
+        self.env = gym.make(config["env_cont"])
 
         # set seeds for comparison
         torch.manual_seed(seed)
@@ -48,7 +48,7 @@ class Agent():
         # everything necessary for SummaryWriter
         time_for_path = datetime.datetime.now().strftime("%Y.%m.%d-%H:%M:%S")
         pathname = f" {time_for_path}"
-        tensorboard_name = str(config["locexp"]) + '/runs' + str(pathname)
+        tensorboard_name = str(config["locexp"]) + "/" + str(pathname)
         self.writer = SummaryWriter(tensorboard_name)
         self.steps = 0
 
